@@ -1,4 +1,4 @@
 export const environment = {
     production: true,
-    apiUrl: 'https://backend-pedidos.onrender.com/api'
+    apiUrl: 'https://marcannpedidos-23lie9ww.b4a.run/api'
 };
