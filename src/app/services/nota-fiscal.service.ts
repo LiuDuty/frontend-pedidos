@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { NotaFiscal } from '../models/nota-fiscal.model';
 import { environment } from '../../environments/environment';
@@ -12,8 +12,24 @@ export class NotaFiscalService {
     private http = inject(HttpClient);
 
     getAll(search?: string): Observable<NotaFiscal[]> {
-        const url = search ? `${this.apiUrl}?search=${search}` : this.apiUrl;
-        return this.http.get<NotaFiscal[]>(url);
+        const headers = new HttpHeaders({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+
+        let url = this.apiUrl;
+        const params: string[] = [];
+
+        if (search) params.push(`search=${search}`);
+        // Cache buster
+        params.push(`t=${new Date().getTime()}`);
+
+        if (params.length > 0) {
+            url += '?' + params.join('&');
+        }
+
+        return this.http.get<NotaFiscal[]>(url, { headers });
     }
 
     getById(id: number): Observable<NotaFiscal> {
