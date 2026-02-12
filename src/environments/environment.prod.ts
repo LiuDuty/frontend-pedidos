@@ -1,4 +1,6 @@
 export const environment = {
     production: true,
-    apiUrl: 'https://marcannpedidos-3edwi8m5.b4a.run/api'
+    apiUrl: 'https://marcannpedidos-ozpyn7md.b4a.run/api',
+    baseUrl: 'https://marcannpedidos-ozpyn7md.b4a.run'
 };
+

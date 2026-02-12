@@ -17,6 +17,8 @@ import { OrderService } from '../../services/order.service';
 import { Order, OrderItem, Supplier, Customer } from '../../models/order.model';
 import { NotaFiscalService } from '../../services/nota-fiscal.service';
 import { NotaFiscal } from '../../models/nota-fiscal.model';
+import { environment } from '../../../environments/environment';
+
 
 @Component({
   selector: 'app-order-form',
@@ -428,7 +430,7 @@ export class OrderFormComponent implements OnInit {
     const filename = this.selectedSupplier()?.logo_filename;
     if (!filename) return '';
     // Point to backend static file server
-    return `http://localhost:3000/logos/${filename}`;
+    return `${environment.baseUrl}/logos/${filename}`;
   }
 
   onLogoError(event: Event) {
