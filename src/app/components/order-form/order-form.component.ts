@@ -1,6 +1,6 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormArray } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,11 +8,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatCardModule } from '@angular/material/card';
-import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatSelectModule } from '@angular/material/select';
+import { ActivatedRoute, Router } from '@angular/router';
 
+import { OrderService } from '../../services/order.service';
+import { Order, OrderItem, Supplier, Customer } from '../../models/order.model';
 import { NotaFiscalService } from '../../services/nota-fiscal.service';
 import { NotaFiscal } from '../../models/nota-fiscal.model';
 
@@ -21,408 +23,528 @@ import { NotaFiscal } from '../../models/nota-fiscal.model';
   standalone: true,
   imports: [
     CommonModule, FormsModule, ReactiveFormsModule,
-    MatInputModule, MatFormFieldModule,
-    MatButtonModule, MatIconModule, MatDatepickerModule,
-    MatCardModule, MatTableModule, MatDividerModule,
-    MatSnackBarModule, MatPaginatorModule
+    MatInputModule, MatFormFieldModule, MatButtonModule,
+    MatIconModule, MatDatepickerModule, MatCardModule,
+    MatDividerModule, MatSnackBarModule, MatSelectModule
   ],
   providers: [provideNativeDateAdapter()],
   template: `
-<div class="crud-container">
-  <mat-card class="search-card">
+<div class="order-container">
+  <mat-card>
     <mat-card-header>
-      <mat-card-title>Gestão de Notas Fiscais</mat-card-title>
+      <mat-card-title>Emissão de Nota Fiscal / Pedido</mat-card-title>
     </mat-card-header>
+    
     <mat-card-content>
-      <div class="search-row">
-        <mat-form-field appearance="outline" class="flex-grow">
-          <mat-label>Pesquisar (Cliente, Produto, NF, Pedido)</mat-label>
-          <input matInput [(ngModel)]="searchQuery" (keyup.enter)="loadNotas()">
-          <button mat-icon-button matSuffix (click)="loadNotas()">
-            <mat-icon>search</mat-icon>
-          </button>
-        </mat-form-field>
-        <button mat-raised-button color="primary" (click)="novo()">
-          <mat-icon>add</mat-icon> Nova Nota
-        </button>
-      </div>
-    </mat-card-content>
-  </mat-card>
-
-  <div class="content-layout">
-    <!-- List Section -->
-    <mat-card class="list-card" [class.hidden-mobile]="isFormVisible()">
-      <div class="table-container">
-        <table mat-table [dataSource]="dataSource" class="full-width">
-          <ng-container matColumnDef="id">
-            <th mat-header-cell *matHeaderCellDef> ID </th>
-            <td mat-cell *matCellDef="let n"> {{n.id}} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="cliente">
-            <th mat-header-cell *matHeaderCellDef> Cliente </th>
-            <td mat-cell *matCellDef="let n"> {{n.cliente}} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="produto">
-            <th mat-header-cell *matHeaderCellDef> Produto </th>
-            <td mat-cell *matCellDef="let n"> {{n.produto}} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="nf">
-            <th mat-header-cell *matHeaderCellDef> NF </th>
-            <td mat-cell *matCellDef="let n"> {{n.nf}} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef> Ações </th>
-            <td mat-cell *matCellDef="let n">
-              <button mat-icon-button color="primary" (click)="selecionar(n); $event.stopPropagation()">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button mat-icon-button color="warn" (click)="excluir(n.id); $event.stopPropagation()">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;"
-              (click)="selecionar(row)"
-              class="clickable-row"
-              [class.selected-row]="notaForm.get('id')?.value === row.id"></tr>
-        </table>
-      </div>
-    </mat-card>
-
-    <!-- Form Section -->
-    <mat-card class="form-card" *ngIf="isFormVisible()">
-      <mat-card-header>
-        <button mat-icon-button (click)="cancelar()" class="mobile-only">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <mat-card-title>{{ notaForm.get('id')?.value ? 'Editar' : 'Nova' }} Nota</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <form [formGroup]="notaForm" class="nota-form">
-          <div class="form-grid">
-            <mat-form-field appearance="outline">
-              <mat-label>Mês/Ano</mat-label>
-              <input matInput formControlName="mes_ano" placeholder="EX: MARÇO 2014">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Cliente</mat-label>
-              <input matInput formControlName="cliente" required>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Produto</mat-label>
-              <input matInput formControlName="produto" required>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Pedido Nº</mat-label>
-              <input matInput formControlName="pedido">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Data Pedido</mat-label>
-              <input matInput [matDatepicker]="dp1" formControlName="data_pedido">
-              <mat-datepicker-toggle matIconSuffix [for]="dp1"></mat-datepicker-toggle>
-              <mat-datepicker #dp1></mat-datepicker>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Data Entrega</mat-label>
-              <input matInput [matDatepicker]="dp2" formControlName="data_entrega">
-              <mat-datepicker-toggle matIconSuffix [for]="dp2"></mat-datepicker-toggle>
-              <mat-datepicker #dp2></mat-datepicker>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>NF</mat-label>
-              <input matInput formControlName="nf">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Quantidade</mat-label>
-              <input type="number" matInput formControlName="quantidade">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Unidade</mat-label>
-              <input matInput formControlName="unidade">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Preço Unit.</mat-label>
-              <input type="number" matInput formControlName="preco_unitario">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Valor Total</mat-label>
-              <input type="number" matInput formControlName="valor_total">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Comissão</mat-label>
-              <input type="number" matInput formControlName="comissao">
-            </mat-form-field>
-          </div>
-
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Observação</mat-label>
-            <textarea matInput formControlName="observacao"></textarea>
+      <form [formGroup]="orderForm">
+        <!-- SEÇÃO: FORNECEDOR E CLIENTE -->
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-8">
+            <mat-label>Fornecedor</mat-label>
+            <mat-select formControlName="supplierId" (selectionChange)="onSupplierSelect($event.value)">
+              <mat-option *ngFor="let s of suppliers()" [value]="s.id">{{s.name}}</mat-option>
+            </mat-select>
           </mat-form-field>
-        </form>
-      </mat-card-content>
-      <mat-card-actions align="end">
-        <button mat-button (click)="cancelar()">Cancelar</button>
-        <button mat-raised-button color="primary" (click)="salvar()">
-          {{ notaForm.get('id')?.value ? 'Atualizar' : 'Salvar' }}
+          <div class="col-4 logo-container" *ngIf="selectedSupplier() && selectedSupplier()?.logo_filename">
+            <img [src]="getLogoUrl()" alt="Logo do Fornecedor" class="supplier-logo" (error)="onLogoError($event)">
+          </div>
+        </div>
+
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-12">
+            <mat-label>Cliente</mat-label>
+            <mat-select formControlName="customerId" (selectionChange)="onCustomerSelect($event.value)">
+              <mat-option *ngFor="let c of customers()" [value]="c.id">{{c.name}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- SEÇÃO: LOCAL DE ENTREGA -->
+        <h4 class="section-title">Local de Entrega</h4>
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Nome / Local</mat-label>
+            <input matInput formControlName="deliveryName">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Endereço de Entrega</mat-label>
+            <input matInput formControlName="deliveryAddress">
+          </mat-form-field>
+        </div>
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-3">
+            <mat-label>Cidade</mat-label>
+            <input matInput formControlName="deliveryCity">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-1">
+            <mat-label>UF</mat-label>
+            <input matInput formControlName="deliveryState">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-3">
+            <mat-label>CNPJ</mat-label>
+            <input matInput formControlName="deliveryCnpj">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-3">
+            <mat-label>Insc. Estadual</mat-label>
+            <input matInput formControlName="deliveryIe">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-2">
+            <mat-label>CEP</mat-label>
+            <input matInput formControlName="deliveryZip">
+          </mat-form-field>
+        </div>
+
+        <!-- SEÇÃO: PEDIDO -->
+        <mat-divider></mat-divider>
+        <div class="row" style="margin-top: 20px;">
+          <mat-form-field appearance="outline" class="col-2">
+            <mat-label>Pedido Nº</mat-label>
+            <input matInput formControlName="orderNumber" (blur)="onOrderNumberBlur()">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-2">
+            <mat-label>Data do Pedido</mat-label>
+            <input matInput [matDatepicker]="dp1" formControlName="orderDate">
+            <mat-datepicker-toggle matIconSuffix [for]="dp1"></mat-datepicker-toggle>
+            <mat-datepicker #dp1></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-3">
+            <mat-label>O.C. do Cliente</mat-label>
+            <input matInput formControlName="customerOc">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-3">
+            <mat-label>Condição de Pagamento</mat-label>
+            <input matInput formControlName="paymentTerms">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-2">
+            <mat-label>Frete</mat-label>
+            <mat-select formControlName="freightType">
+              <mat-option value="CIF">CIF</mat-option>
+              <mat-option value="FOB">FOB</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- SEÇÃO: ITENS -->
+        <h4 class="section-title">Produtos / Itens</h4>
+        <div formArrayName="items">
+          @for (item of items.controls; track $index) {
+          <div [formGroupName]="$index" class="item-grid">
+            <mat-form-field appearance="outline" class="prod-name">
+              <mat-label>Produto</mat-label>
+              <input matInput formControlName="productName">
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline" class="mini">
+              <mat-label>Código</mat-label>
+              <input matInput formControlName="productCode">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini">
+              <mat-label>Cx.</mat-label>
+              <input type="number" matInput formControlName="caseQuantity">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini">
+              <mat-label>Peso</mat-label>
+              <input type="number" matInput formControlName="weight">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini">
+              <mat-label>Quant.</mat-label>
+              <input type="number" matInput formControlName="quantity" (input)="calculateItem($index)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="med">
+              <mat-label>Preço / Mil</mat-label>
+              <input type="number" matInput formControlName="pricePerThousand" (input)="calculateItem($index)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="med">
+              <mat-label>Subtotal</mat-label>
+              <input type="number" matInput formControlName="subtotal" readonly>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="mini">
+              <mat-label>IPI %</mat-label>
+              <input type="number" matInput formControlName="ipi" (input)="calculateItem($index)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="med">
+              <mat-label>Total</mat-label>
+              <input type="number" matInput formControlName="total" readonly>
+            </mat-form-field>
+
+            <button mat-icon-button color="warn" (click)="removeItem($index)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+          }
+        </div>
+        <button mat-stroked-button color="primary" (click)="addItem()">
+          <mat-icon>add</mat-icon> Adicionar Linha
         </button>
-      </mat-card-actions>
-    </mat-card>
-  </div>
+
+        <mat-divider style="margin: 20px 0;"></mat-divider>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Observações</mat-label>
+          <textarea matInput formControlName="observation" rows="3"></textarea>
+        </mat-form-field>
+
+      </form>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-raised-button (click)="novo()">Novo Pedido</button>
+      <button mat-raised-button color="primary" (click)="gravar()" [disabled]="orderForm.invalid">Gravar</button>
+      <button mat-raised-button color="accent" (click)="atualizar()" [disabled]="!orderForm.get('id')?.value || orderForm.get('isLegacy')?.value">Atualizar</button>
+      <button mat-raised-button color="warn" (click)="excluir()" [disabled]="!orderForm.get('id')?.value || orderForm.get('isLegacy')?.value">Excluir</button>
+    </mat-card-actions>
+  </mat-card>
 </div>
   `,
   styles: `
-.crud-container {
-  padding: 20px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  background-color: #f5f5f5;
-}
+.order-container { padding: 20px; max-width: 1300px; margin: 0 auto; }
+.row { display: flex; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+.col-1 { width: calc(8.33% - 10px); }
+.col-2 { width: calc(16.66% - 10px); }
+.col-3 { width: calc(25% - 10px); }
+.col-4 { width: calc(33.33% - 10px); }
+.col-6 { width: calc(50% - 10px); }
+.col-8 { width: calc(66.66% - 10px); }
+.col-12 { width: 100%; }
 
-.search-card {
-  flex-shrink: 0;
-}
+.section-title { margin: 15px 0 10px 0; color: #3f51b5; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+.logo-container { height: 75px; display: flex; justify-content: center; align-items: center; border: 1px dashed #ccc; }
+.supplier-logo { max-width: 90%; max-height: 90%; }
 
-.search-row {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-}
+.item-grid { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; }
+.prod-name { flex-grow: 1; min-width: 250px; }
+.mini { width: 85px; }
+.med { width: 120px; }
+.full-width { width: 100%; }
 
-.content-layout {
-  display: flex;
-  gap: 20px;
-  flex-grow: 1;
-  min-height: 0;
-  overflow: visible;
-}
-
-.list-card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.form-card {
-  width: 500px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 150px);
-  overflow-y: auto;
-}
-
-.table-container {
-  overflow: auto;
-}
-
-.full-width {
-  width: 100%;
-}
-
-.flex-grow {
-  flex-grow: 1;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.selected-row {
-  background-color: #e3f2fd;
-}
-
-.clickable-row:hover {
-  cursor: pointer;
-  background-color: #fafafa;
-}
-
-.mobile-only {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .crud-container {
-    padding: 0;
+/* Responsive styles for mobile */
+@media (max-width: 768px) {
+  .order-container { padding: 10px; }
+  
+  /* Make all columns full width on mobile */
+  .col-1, .col-2, .col-3, .col-4, .col-6, .col-8 { 
+    width: 100%; 
+    min-width: 100%;
   }
   
-  .search-card {
-    border-radius: 0;
-    margin-bottom: 0;
+  /* Increase spacing between rows */
+  .row { 
+    gap: 0; 
+    margin-bottom: 10px; 
   }
-
-  .content-layout {
-    flex-direction: column;
+  
+  /* Better spacing for form fields */
+  mat-form-field {
+    margin-bottom: 8px;
+  }
+  
+  /* Stack item grid vertically */
+  .item-grid { 
+    flex-direction: column; 
     gap: 0;
+    align-items: stretch;
   }
-
-  .list-card.hidden-mobile {
+  
+  .prod-name, .mini, .med { 
+    width: 100%; 
+    min-width: 100%;
+  }
+  
+  /* Larger touch targets for buttons */
+  button {
+    min-height: 44px;
+    margin: 4px 0;
+  }
+  
+  /* Hide logo container on very small screens */
+  .logo-container {
     display: none;
   }
-
-  .form-card {
-    width: 100%;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    max-height: 100vh;
-    z-index: 1000;
-    margin: 0;
-    border-radius: 0;
-  }
-
-  .mobile-only {
-    display: inline-flex;
-    margin-right: 8px;
+  
+  /* Section titles more prominent */
+  .section-title {
+    font-size: 16px;
+    margin: 20px 0 15px 0;
+    font-weight: 500;
   }
 }
-  `
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .order-container { padding: 5px; }
+  
+  mat-card {
+    padding: 12px !important;
+  }
+  
+  mat-card-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  mat-card-actions button {
+    width: 100%;
+  }
+}
+`
 })
 export class OrderFormComponent implements OnInit {
   private fb = inject(FormBuilder);
+  private orderService = inject(OrderService);
   private notaService = inject(NotaFiscalService);
   private snackBar = inject(MatSnackBar);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
-  searchQuery = '';
-  dataSource = new MatTableDataSource<NotaFiscal>([]);
-  isFormVisible = signal(false);
-  displayedColumns: string[] = ['id', 'cliente', 'produto', 'nf', 'actions'];
-
-  notaForm = this.fb.group({
-    id: [null as number | null],
-    mes_ano: [''],
-    data_pedido: [null as any],
-    data_entrega: [null as any],
-    data_fatura: [null as any],
-    cliente: ['', Validators.required],
-    produto: ['', Validators.required],
-    pedido: [''],
-    oc_cliente: [''],
-    quantidade: [null as number | null],
-    unidade: [''],
-    preco_unitario: [null as number | null],
-    valor_total: [null as number | null],
-    comissao: [null as number | null],
-    nf: [''],
-    saldo: [null as number | null],
-    observacao: [''],
-    origem: ['Principal']
+  orderForm = this.fb.group({
+    id: [null as string | number | null],
+    orderNumber: ['', Validators.required],
+    orderDate: [new Date().toISOString(), Validators.required],
+    customerOc: [''],
+    email: [''],
+    deliveryDate: [null as string | null],
+    deliveryName: [''],
+    deliveryAddress: [''],
+    deliveryCity: [''],
+    deliveryState: [''],
+    deliveryCnpj: [''],
+    deliveryIe: [''],
+    deliveryZip: [''],
+    deliveryPhone: [''],
+    billingAddress: [''],
+    billingCity: [''],
+    billingState: [''],
+    billingZip: [''],
+    paymentTerms: [''],
+    freightType: ['FOB'],
+    carrier: [''],
+    carrierPhone: [''],
+    carrierContact: [''],
+    observation: [''],
+    customerId: [null as number | null, Validators.required],
+    supplierId: [null as number | null, Validators.required],
+    isLegacy: [false],
+    items: this.fb.array([])
   });
 
+  suppliers = signal<Supplier[]>([]);
+  customers = signal<Customer[]>([]);
+  selectedSupplier = signal<Supplier | null>(null);
+
   ngOnInit() {
-    this.loadNotas();
-  }
+    this.orderService.getSuppliers().subscribe(res => this.suppliers.set(res));
+    this.orderService.getCustomers().subscribe(res => this.customers.set(res));
 
-  loadNotas() {
-    this.notaService.getAll(this.searchQuery).subscribe({
-      next: (res) => {
-        console.log('Notas carregadas:', res.length);
-        this.dataSource.data = res;
-      },
-      error: (err) => {
-        console.error('Erro ao carregar notas:', err);
-        this.snackBar.open('Erro ao carregar notas', 'OK');
-      }
-    });
-  }
+    // Check if navigating from history page with a selected nota
+    const navigation = this.router.getCurrentNavigation();
+    const state = navigation?.extras?.state || window.history.state;
 
-  novo() {
-    this.notaForm.reset({ origem: 'Principal' });
-    this.isFormVisible.set(true);
-  }
+    if (state && state['selectedNota']) {
+      const nota: NotaFiscal = state['selectedNota'];
+      this.loadNotaIntoForm(nota);
+      return;
+    }
 
-  selecionar(nota: NotaFiscal) {
-    const parsedNota = {
-      ...nota,
-      data_pedido: nota.data_pedido ? new Date(nota.data_pedido + 'T00:00:00') : null,
-      data_entrega: nota.data_entrega ? new Date(nota.data_entrega + 'T00:00:00') : null,
-      data_fatura: nota.data_fatura ? new Date(nota.data_fatura + 'T00:00:00') : null,
-    };
-    this.notaForm.patchValue(parsedNota);
-    this.isFormVisible.set(true);
-  }
-
-  cancelar() {
-    this.isFormVisible.set(false);
-    this.notaForm.reset();
-  }
-
-  salvar() {
-    if (this.notaForm.invalid) return;
-
-    const rawData = this.notaForm.value;
-    const formatDate = (date: any) => {
-      if (!date) return null;
-      const d = new Date(date);
-      if (isNaN(d.getTime())) return null;
-      return d.toISOString().split('T')[0];
-    };
-
-    const data: NotaFiscal = {
-      ...rawData as any,
-      data_pedido: formatDate(rawData.data_pedido),
-      data_entrega: formatDate(rawData.data_entrega),
-      data_fatura: formatDate(rawData.data_fatura),
-    };
-
-    const id = data.id;
-
+    const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.notaService.update(id, data).subscribe({
-        next: () => {
-          this.snackBar.open('Nota atualizada com sucesso', 'OK', { duration: 3000 });
-          this.loadNotas();
-          this.isFormVisible.set(false);
-        },
-        error: (err) => this.snackBar.open('Erro ao atualizar: ' + err.message, 'Erro')
-      });
+      this.orderService.getOrder(id).subscribe(res => this.loadOrder(res));
     } else {
-      this.notaService.create(data).subscribe({
-        next: () => {
-          this.snackBar.open('Nota criada com sucesso', 'OK', { duration: 3000 });
-          this.loadNotas();
-          this.isFormVisible.set(false);
-        },
-        error: (err) => this.snackBar.open('Erro ao criar: ' + err.message, 'Erro')
+      this.addItem();
+    }
+  }
+
+  loadNotaIntoForm(nota: NotaFiscal) {
+    // Convert nota fiscal data to order form format
+    // This is a simplified mapping - adjust as needed
+    this.orderForm.patchValue({
+      orderNumber: nota.pedido || '',
+      orderDate: nota.data_pedido || new Date().toISOString(),
+      deliveryDate: nota.data_entrega,
+      deliveryName: nota.cliente
+    });
+
+    // Add a single item with the nota data
+    this.addItem();
+    const item = this.items.at(0);
+    item.patchValue({
+      productName: nota.produto,
+      quantity: nota.quantidade || 0,
+      pricePerThousand: nota.preco_unitario || 0,
+      subtotal: nota.valor_total || 0,
+      total: nota.valor_total || 0
+    });
+
+    this.snackBar.open(`Nota ${nota.nf} carregada do histórico`, 'OK', { duration: 3000 });
+  }
+
+  get items() { return this.orderForm.get('items') as FormArray; }
+
+  addItem() {
+    const item = this.fb.group({
+      productName: ['', Validators.required],
+      productCode: [''],
+      caseQuantity: [0],
+      weight: [0],
+      quantity: [0],
+      pricePerThousand: [0],
+      subtotal: [{ value: 0, disabled: false }],
+      ipi: [0],
+      total: [{ value: 0, disabled: false }]
+    });
+    this.items.push(item);
+  }
+
+  removeItem(i: number) { this.items.removeAt(i); }
+
+  calculateItem(i: number) {
+    const group = this.items.at(i);
+    const qty = group.get('quantity')?.value || 0;
+    const priceM = group.get('pricePerThousand')?.value || 0;
+    const ipi = group.get('ipi')?.value || 0;
+
+    const subtotal = (qty * priceM) / 1000;
+    const total = subtotal + (subtotal * ipi / 100);
+
+    group.patchValue({
+      subtotal: parseFloat(subtotal.toFixed(2)),
+      total: parseFloat(total.toFixed(2))
+    }, { emitEvent: false });
+  }
+
+  onSupplierSelect(id: number) {
+    const s = this.suppliers().find(x => x.id === id);
+    this.selectedSupplier.set(s || null);
+    this.checkNextNumber();
+  }
+
+  getLogoUrl(): string {
+    const filename = this.selectedSupplier()?.logo_filename;
+    if (!filename) return '';
+    // Point to backend static file server
+    return `http://localhost:3000/logos/${filename}`;
+  }
+
+  onLogoError(event: Event) {
+    // Hide image if it fails to load
+    const img = event.target as HTMLImageElement;
+    img.style.display = 'none';
+  }
+
+  onCustomerSelect(id: number) {
+    const c = this.customers().find(x => x.id === id);
+    if (c) {
+      this.orderForm.patchValue({
+        deliveryName: c.name,
+        deliveryAddress: c.address,
+        deliveryCity: c.city,
+        deliveryState: c.state,
+        deliveryZip: c.zipcode,
+        billingAddress: c.address
+      });
+    }
+    this.checkNextNumber();
+  }
+
+  checkNextNumber() {
+    const sId = this.orderForm.get('supplierId')?.value;
+    const cId = this.orderForm.get('customerId')?.value;
+    if (sId && cId && !this.orderForm.get('id')?.value) {
+      this.orderService.getNextOrderNumber(sId, cId).subscribe(res => {
+        this.orderForm.patchValue({ orderNumber: res.nextNumber });
       });
     }
   }
 
-  excluir(id: number) {
-    if (!id) return;
-    if (confirm('Deseja excluir esta nota?')) {
-      this.notaService.delete(id).subscribe({
-        next: () => {
-          this.snackBar.open('Nota excluída', 'OK', { duration: 3000 });
-          this.loadNotas();
-          if (this.notaForm.get('id')?.value === id) {
-            this.cancelar();
-          }
-        },
-        error: (err) => this.snackBar.open('Erro ao excluir: ' + err.message, 'Erro')
+  onOrderNumberBlur() {
+    const num = this.orderForm.get('orderNumber')?.value;
+    const sId = this.orderForm.get('supplierId')?.value;
+    const cId = this.orderForm.get('customerId')?.value;
+    if (num && sId && cId) {
+      this.orderService.findOrder(num, sId, cId).subscribe({
+        next: (o) => this.loadOrder(o),
+        error: () => this.orderForm.get('id')?.setValue(null)
       });
+    }
+  }
+
+  loadOrder(o: Order) {
+    this.orderForm.patchValue({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      orderDate: o.orderDate,
+      customerOc: o.customerOc,
+      paymentTerms: o.paymentTerms,
+      freightType: o.freightType,
+      observation: o.observation,
+      customerId: o.customerId,
+      supplierId: o.supplierId,
+      isLegacy: !!o.isLegacy,
+      deliveryName: o.deliveryName,
+      deliveryAddress: o.deliveryAddress,
+      deliveryCity: o.deliveryCity,
+      deliveryState: o.deliveryState,
+      deliveryCnpj: o.deliveryCnpj,
+      deliveryIe: o.deliveryIe,
+      deliveryZip: o.deliveryZip,
+      deliveryPhone: o.deliveryPhone,
+      billingAddress: o.billingAddress
+    });
+    this.selectedSupplier.set(o.supplier || null);
+    this.items.clear();
+    o.orderItems?.forEach(i => {
+      const g = this.fb.group({
+        productName: [i.productName, Validators.required],
+        productCode: [i.productCode],
+        caseQuantity: [i.caseQuantity],
+        weight: [i.weight],
+        quantity: [i.quantity],
+        pricePerThousand: [i.pricePerThousand],
+        subtotal: [i.subtotal],
+        ipi: [i.ipi],
+        total: [i.total]
+      });
+      this.items.push(g);
+    });
+  }
+
+  novo() {
+    this.orderForm.reset({
+      orderDate: new Date().toISOString(),
+      freightType: 'CIF'
+    });
+    this.items.clear();
+    this.addItem();
+    this.selectedSupplier.set(null);
+  }
+
+  gravar() {
+    const data = this.orderForm.getRawValue() as any;
+    this.orderService.createOrder(data).subscribe({
+      next: (res) => { this.loadOrder(res); this.snackBar.open('Gravado!', 'OK', { duration: 2000 }); },
+      error: (e) => this.snackBar.open('Erro: ' + e.error.error, 'Fechar')
+    });
+  }
+
+  atualizar() {
+    const id = this.orderForm.get('id')?.value;
+    const data = this.orderForm.getRawValue() as any;
+    this.orderService.updateOrder(id!, data).subscribe({
+      next: (res) => { this.loadOrder(res); this.snackBar.open('Atualizado!', 'OK', { duration: 2000 }); },
+      error: (e) => this.snackBar.open('Erro: ' + e.error.error, 'Fechar')
+    });
+  }
+
+  excluir() {
+    const id = this.orderForm.get('id')?.value;
+    if (confirm('Excluir?')) {
+      this.orderService.deleteOrder(id!).subscribe(() => { this.novo(); this.snackBar.open('Excluído', 'OK', { duration: 2000 }); });
     }
   }
 }

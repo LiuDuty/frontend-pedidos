@@ -39,18 +39,24 @@ export interface OrderItem {
     caseQuantity: number;
     weight: number;
     quantity: number;
-    unitPrice: number;
+    pricePerThousand: number;
+    subtotal: number;
+    unitPrice?: number;
     ipi: number;
+    total: number;
     orderId?: number;
 }
 
 export interface Order {
-    id?: number;
+    id?: string | number;
     orderNumber: string;
     orderDate: string;
     customerOc?: string;
     email?: string;
     deliveryDate?: string;
+
+    // Entrega
+    deliveryName?: string;
     deliveryAddress?: string;
     deliveryCity?: string;
     deliveryState?: string;
@@ -58,7 +64,12 @@ export interface Order {
     deliveryIe?: string;
     deliveryZip?: string;
     deliveryPhone?: string;
+
+    // Cobrança
     billingAddress?: string;
+    billingCity?: string;
+    billingState?: string;
+
     carrier?: string;
     carrierPhone?: string;
     carrierContact?: string;
@@ -67,6 +78,7 @@ export interface Order {
     observation?: string;
     customerId: number;
     supplierId: number;
+    isLegacy?: boolean;
     customer?: Customer;
     supplier?: Supplier;
     orderItems?: OrderItem[];
