@@ -2,12 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { NotaFiscal } from '../models/nota-fiscal.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
     providedIn: 'root'
 })
 export class NotaFiscalService {
-    private apiUrl = 'http://localhost:3000/api/notas-fiscais';
+    private apiUrl = `${environment.apiUrl}/notas-fiscais`;
     private http = inject(HttpClient);
 
     getAll(search?: string): Observable<NotaFiscal[]> {
