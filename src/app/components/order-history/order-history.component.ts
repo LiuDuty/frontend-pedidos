@@ -9,8 +9,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 import { Router } from '@angular/router';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { OrderService } from '../../services/order.service';
 import { Order } from '../../models/order.model';
+import { PdfService } from '../../services/pdf.service';
 
 @Component({
   selector: 'app-order-history',
@@ -18,7 +21,8 @@ import { Order } from '../../models/order.model';
   imports: [
     CommonModule, FormsModule, ReactiveFormsModule,
     MatTableModule, MatButtonModule, MatIconModule, MatInputModule,
-    MatFormFieldModule, MatCardModule, MatDividerModule
+    MatFormFieldModule, MatCardModule, MatDividerModule, MatMenuModule,
+    MatTooltipModule
   ],
   template: `
 <div class="container">
@@ -78,10 +82,27 @@ import { Order } from '../../models/order.model';
 
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef> Ações </th>
-          <td mat-cell *matCellDef="let o">
-            <button mat-icon-button color="primary">
+          <td mat-cell *matCellDef="let o; let i = index" (click)="$event.stopPropagation()">
+            <button mat-icon-button color="primary" (click)="viewOrder(o)" matTooltip="Ver detalhes">
               <mat-icon>visibility</mat-icon>
             </button>
+            <button mat-icon-button color="warn" [matMenuTriggerFor]="pdfMenu" matTooltip="Opções de PDF">
+              <mat-icon>picture_as_pdf</mat-icon>
+            </button>
+            <mat-menu #pdfMenu="matMenu">
+              <button mat-menu-item (click)="generatePDF(o, 'preview')">
+                <mat-icon>visibility</mat-icon>
+                <span>Visualizar PDF</span>
+              </button>
+              <button mat-menu-item (click)="generatePDF(o, 'download')">
+                <mat-icon>download</mat-icon>
+                <span>Baixar PDF</span>
+              </button>
+              <button mat-menu-item (click)="generatePDF(o, 'share')">
+                <mat-icon>share</mat-icon>
+                <span>Compartilhar PDF</span>
+              </button>
+            </mat-menu>
           </td>
         </ng-container>
       </table>
@@ -105,6 +126,7 @@ export class OrderHistoryComponent implements OnInit {
   private fb = inject(FormBuilder);
   private orderService = inject(OrderService);
   private router = inject(Router);
+  private pdfService = inject(PdfService);
 
   orders = signal<Order[]>([]);
   displayedColumns = ['orderNumber', 'orderDate', 'customerName', 'supplierName', 'customerOc', 'actions'];
@@ -149,5 +171,16 @@ export class OrderHistoryComponent implements OnInit {
     this.router.navigate(['/order-form'], {
       state: { selectedOrder: order }
     });
+  }
+
+  generatePDF(order: Order, action: 'preview' | 'download' | 'share') {
+    if (order.orderItems && order.orderItems.length > 0) {
+      this.pdfService.generateOrderPDF(order, action);
+    } else {
+      // Se não tiver os itens (provável listagem parcial), busca o objeto completo
+      this.orderService.getOrder(String(order.id)).subscribe(fullOrder => {
+        this.pdfService.generateOrderPDF(fullOrder, action);
+      });
+    }
   }
 }
