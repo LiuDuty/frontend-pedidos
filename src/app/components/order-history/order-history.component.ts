@@ -9,8 +9,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 import { Router } from '@angular/router';
-import { NotaFiscalService } from '../../services/nota-fiscal.service';
-import { NotaFiscal } from '../../models/nota-fiscal.model';
+import { OrderService } from '../../services/order.service';
+import { Order } from '../../models/order.model';
 
 @Component({
   selector: 'app-order-history',
@@ -24,16 +24,15 @@ import { NotaFiscal } from '../../models/nota-fiscal.model';
 <div class="container">
   <mat-card>
     <mat-card-header>
-      <mat-card-title>Histórico de Notas Fiscais</mat-card-title>
+      <mat-card-title>Histórico de Pedidos</mat-card-title>
     </mat-card-header>
     
     <mat-card-content>
-      <!-- Filtros -->
       <form [formGroup]="filterForm" (ngSubmit)="search()" class="filter-form">
         <div class="row">
           <mat-form-field appearance="outline" class="flex-grow">
-            <mat-label>Pesquisar (Cliente, Produto, NF, Pedido)</mat-label>
-            <input matInput formControlName="query" placeholder="Digite para buscar...">
+            <mat-label>Pesquisar Pedido</mat-label>
+            <input matInput formControlName="query" placeholder="Nº Pedido, Cliente ou Fornecedor...">
           </mat-form-field>
           <div class="btns">
             <button mat-raised-button color="primary" type="submit">Pesquisar</button>
@@ -44,48 +43,46 @@ import { NotaFiscal } from '../../models/nota-fiscal.model';
 
       <mat-divider style="margin: 20px 0;"></mat-divider>
 
-      <!-- Resultados -->
       <div class="results-info">
-        <p>Total de registros: {{ notas().length }}</p>
+        <p>Total de registros: {{ orders().length }}</p>
       </div>
       
-      <table mat-table [dataSource]="notas()" class="mat-elevation-z0 clickable-table">
+      <table mat-table [dataSource]="orders()" class="mat-elevation-z0 clickable-table">
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="viewNota(row)"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="viewOrder(row)"></tr>
         
-        <ng-container matColumnDef="id">
-          <th mat-header-cell *matHeaderCellDef> ID </th>
-          <td mat-cell *matCellDef="let n"> {{n.id}} </td>
+        <ng-container matColumnDef="orderNumber">
+          <th mat-header-cell *matHeaderCellDef> Nº Pedido </th>
+          <td mat-cell *matCellDef="let o"> {{o.orderNumber}} </td>
         </ng-container>
 
-        <ng-container matColumnDef="mes_ano">
-          <th mat-header-cell *matHeaderCellDef> Mês/Ano </th>
-          <td mat-cell *matCellDef="let n"> {{n.mes_ano}} </td>
+        <ng-container matColumnDef="orderDate">
+          <th mat-header-cell *matHeaderCellDef> Data </th>
+          <td mat-cell *matCellDef="let o"> {{o.orderDate | date:'dd/MM/yyyy'}} </td>
         </ng-container>
 
-        <ng-container matColumnDef="cliente">
+        <ng-container matColumnDef="customerName">
           <th mat-header-cell *matHeaderCellDef> Cliente </th>
-          <td mat-cell *matCellDef="let n"> {{n.cliente}} </td>
+          <td mat-cell *matCellDef="let o"> {{o.customerName || o.customer?.name}} </td>
         </ng-container>
 
-        <ng-container matColumnDef="produto">
-          <th mat-header-cell *matHeaderCellDef> Produto </th>
-          <td mat-cell *matCellDef="let n"> {{n.produto}} </td>
+        <ng-container matColumnDef="supplierName">
+          <th mat-header-cell *matHeaderCellDef> Fornecedor </th>
+          <td mat-cell *matCellDef="let o"> {{o.supplierName || o.supplier?.name}} </td>
         </ng-container>
 
-        <ng-container matColumnDef="nf">
-          <th mat-header-cell *matHeaderCellDef> NF </th>
-          <td mat-cell *matCellDef="let n"> {{n.nf}} </td>
+        <ng-container matColumnDef="customerOc">
+          <th mat-header-cell *matHeaderCellDef> O.C. Cliente </th>
+          <td mat-cell *matCellDef="let o"> {{o.customerOc}} </td>
         </ng-container>
 
-        <ng-container matColumnDef="pedido">
-          <th mat-header-cell *matHeaderCellDef> Pedido </th>
-          <td mat-cell *matCellDef="let n"> {{n.pedido}} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="valor_total">
-          <th mat-header-cell *matHeaderCellDef> Valor Total </th>
-          <td mat-cell *matCellDef="let n"> {{n.valor_total | currency:'BRL'}} </td>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef> Ações </th>
+          <td mat-cell *matCellDef="let o">
+            <button mat-icon-button color="primary">
+              <mat-icon>visibility</mat-icon>
+            </button>
+          </td>
         </ng-container>
       </table>
     </mat-card-content>
@@ -106,12 +103,11 @@ table { width: 100%; margin-top: 20px; }
 })
 export class OrderHistoryComponent implements OnInit {
   private fb = inject(FormBuilder);
-  private notaService = inject(NotaFiscalService);
+  private orderService = inject(OrderService);
   private router = inject(Router);
 
-  notas = signal<NotaFiscal[]>([]);
-
-  displayedColumns = ['id', 'mes_ano', 'cliente', 'produto', 'nf', 'pedido', 'valor_total'];
+  orders = signal<Order[]>([]);
+  displayedColumns = ['orderNumber', 'orderDate', 'customerName', 'supplierName', 'customerOc', 'actions'];
 
   filterForm = this.fb.group({
     query: ['']
@@ -122,15 +118,24 @@ export class OrderHistoryComponent implements OnInit {
   }
 
   search() {
-    const query = this.filterForm.value.query || '';
-    this.notaService.getAll(query).subscribe({
+    const q = this.filterForm.value.query || '';
+    let filter: any = {};
+    if (q) {
+      filter = {
+        "$or": [
+          { "orderNumber": { "$regex": q, "$options": "i" } },
+          { "customerName": { "$regex": q, "$options": "i" } },
+          { "supplierName": { "$regex": q, "$options": "i" } }
+        ]
+      };
+    }
+    this.orderService.getOrders(filter).subscribe({
       next: (res) => {
-        console.log('Notas carregadas no histórico:', res.length);
-        this.notas.set(res);
+        this.orders.set(res);
       },
       error: (err) => {
-        console.error('Erro ao carregar histórico:', err);
-        this.notas.set([]);
+        console.error('Erro ao carregar pedidos:', err);
+        this.orders.set([]);
       }
     });
   }
@@ -140,10 +145,9 @@ export class OrderHistoryComponent implements OnInit {
     this.search();
   }
 
-  viewNota(nota: NotaFiscal) {
-    // Navigate to order-form with the nota loaded
+  viewOrder(order: Order) {
     this.router.navigate(['/order-form'], {
-      state: { selectedNota: nota }
+      state: { selectedOrder: order }
     });
   }
 }

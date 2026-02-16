@@ -1,6 +1,7 @@
 export const environment = {
     production: true,
-    apiUrl: 'https://marcannpedidos-ozpyn7md.b4a.run/api',
-    baseUrl: 'https://marcannpedidos-ozpyn7md.b4a.run'
+    apiUrl: 'https://parseapi.back4app.com/classes',
+    appId: 'qMwcFKLqhylXNbQghvjtz5zxYO63xlyCzqxOo5lD',
+    restApiKey: '4WY8NtONsoc4VemoMrpcRMvrxwAacy01CFn5Cy2C'
 };
 

@@ -107,11 +107,23 @@ import { Supplier } from '../../models/order.model';
           </div>
         </div>
 
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Nome do Representante</mat-label>
+            <input matInput formControlName="representativeName">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Telefone do Representante</mat-label>
+            <input matInput formControlName="representativePhone">
+          </mat-form-field>
+        </div>
+
         <div class="actions">
           <button mat-raised-button color="primary" type="submit" [disabled]="supplierForm.invalid">
             {{ supplierForm.get('id')?.value ? 'Atualizar' : 'Cadastrar' }}
           </button>
           <button mat-button type="button" (click)="reset()">Limpar</button>
+          <button mat-button color="accent" type="button" (click)="fillCCSData()">Preencher Dados CCS</button>
         </div>
       </form>
 
@@ -185,7 +197,7 @@ export class SupplierListComponent implements OnInit {
   selectedFile: File | null = null;
 
   supplierForm = this.fb.group({
-    id: [null as number | null],
+    id: [null as string | null],
     name: ['', Validators.required],
     logo_filename: [''],
     address: [''],
@@ -197,7 +209,9 @@ export class SupplierListComponent implements OnInit {
     phone: [''],
     cnpj: [''],
     state_registration: [''],
-    email: ['']
+    email: [''],
+    representativeName: [''],
+    representativePhone: ['']
   });
 
   ngOnInit() {
@@ -232,44 +246,47 @@ export class SupplierListComponent implements OnInit {
   save() {
     const data = this.supplierForm.getRawValue() as Supplier;
 
-    const saveSupplier = (supplier: Supplier) => {
-      // If there's a file to upload, upload it after saving
-      if (this.selectedFile && supplier.id) {
-        this.orderService.uploadSupplierLogo(supplier.id, this.selectedFile).subscribe({
-          next: () => {
-            this.snackBar.open('Fornecedor e logo salvos com sucesso!', 'OK', { duration: 2000 });
-            this.reset();
-            this.load();
-          },
-          error: (err) => {
-            this.snackBar.open('Erro ao enviar logo: ' + err.message, 'OK', { duration: 3000 });
-          }
-        });
-      } else {
-        this.snackBar.open(data.id ? 'Fornecedor atualizado!' : 'Fornecedor cadastrado!', 'OK', { duration: 2000 });
-        this.reset();
-        this.load();
-      }
+    const saveCallback = {
+      next: (supplier: any) => {
+        const sid = supplier.id || data.id;
+        if (this.selectedFile && sid) {
+          this.orderService.uploadSupplierLogo(String(sid), this.selectedFile).subscribe({
+            next: (res) => {
+              this.snackBar.open('Fornecedor e logo salvos!', 'OK', { duration: 2000 });
+              this.reset();
+              this.load();
+            },
+            error: (err) => this.snackBar.open('Erro upload: ' + err.message, 'OK', { duration: 3000 })
+          });
+        } else {
+          this.snackBar.open('Salvo com sucesso!', 'OK', { duration: 2000 });
+          this.reset();
+          this.load();
+        }
+      },
+      error: (err: any) => this.snackBar.open('Erro: ' + err.message, 'OK', { duration: 3000 })
     };
 
     if (data.id) {
-      this.orderService.updateSupplier(data.id, data).subscribe({
-        next: (supplier) => saveSupplier(supplier),
-        error: (err) => this.snackBar.open('Erro: ' + err.message, 'OK', { duration: 3000 })
-      });
+      this.orderService.updateSupplier(String(data.id), data).subscribe(saveCallback);
     } else {
-      this.orderService.createSupplier(data).subscribe({
-        next: (supplier) => saveSupplier(supplier),
-        error: (err) => this.snackBar.open('Erro: ' + err.message, 'OK', { duration: 3000 })
-      });
+      this.orderService.createSupplier(data).subscribe(saveCallback);
     }
   }
 
   edit(s: Supplier) {
-    this.supplierForm.patchValue(s);
+    this.supplierForm.patchValue({
+      ...s,
+      id: s.id ? String(s.id) : null
+    } as any);
+    if (s.logo_filename) {
+      this.logoPreview.set(s.logo_filename);
+    } else {
+      this.logoPreview.set(null);
+    }
   }
 
-  delete(id: number) {
+  delete(id: any) {
     if (confirm('Deseja excluir este fornecedor?')) {
       this.orderService.deleteSupplier(id).subscribe(() => {
         this.snackBar.open('Fornecedor excluído', 'OK', { duration: 2000 });
@@ -281,5 +298,24 @@ export class SupplierListComponent implements OnInit {
   reset() {
     this.supplierForm.reset();
     this.clearLogo();
+  }
+
+  fillCCSData() {
+    this.supplierForm.patchValue({
+      name: 'CCS IND. E COM. DE EMBALAGENS PLASTICAS LTDA.',
+      cnpj: '80.130.487/0001-66',
+      state_registration: '251.553.949',
+      address: 'RODOVIA SC 443, KM 03',
+      number: 'S/N',
+      neighborhood: 'PRESIDENTE VARGAS',
+      city: 'IÇARA',
+      state: 'SC',
+      zipcode: '88820-000',
+      phone: '48 3462-1864/1462',
+      email: 'ccs.emb@terra.com.br',
+      representativeName: 'MARCIO FERNANDES LUCCHESE',
+      representativePhone: 'CEL. 11 94972-4778'
+    });
+    this.snackBar.open('Dados CCS carregados no formulário!', 'OK', { duration: 3000 });
   }
 }

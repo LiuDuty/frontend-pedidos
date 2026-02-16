@@ -163,7 +163,7 @@ export class CustomerListComponent implements OnInit {
   displayedColumns = ['name', 'city', 'cnpj', 'actions'];
 
   customerForm = this.fb.group({
-    id: [null as number | null],
+    id: [null as string | null],
     name: ['', Validators.required],
     address: [''],
     number: [''],
@@ -190,7 +190,7 @@ export class CustomerListComponent implements OnInit {
   save() {
     const data = this.customerForm.getRawValue() as Customer;
     if (data.id) {
-      this.orderService.updateCustomer(data.id, data).subscribe(() => {
+      this.orderService.updateCustomer(String(data.id), data).subscribe(() => {
         this.snackBar.open('Cliente atualizado!', 'OK', { duration: 2000 });
         this.reset();
         this.load();
@@ -205,10 +205,13 @@ export class CustomerListComponent implements OnInit {
   }
 
   edit(c: Customer) {
-    this.customerForm.patchValue(c);
+    this.customerForm.patchValue({
+      ...c,
+      id: c.id ? String(c.id) : null
+    } as any);
   }
 
-  delete(id: number) {
+  delete(id: any) {
     if (confirm('Deseja excluir este cliente?')) {
       this.orderService.deleteCustomer(id).subscribe(() => {
         this.snackBar.open('Cliente excluído', 'OK', { duration: 2000 });

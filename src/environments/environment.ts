@@ -1,6 +1,7 @@
 export const environment = {
     production: false,
-    apiUrl: 'http://localhost:3000/api',
-    baseUrl: 'http://localhost:3000'
+    apiUrl: 'https://parseapi.back4app.com/classes',
+    appId: 'qMwcFKLqhylXNbQghvjtz5zxYO63xlyCzqxOo5lD',
+    restApiKey: '4WY8NtONsoc4VemoMrpcRMvrxwAacy01CFn5Cy2C'
 };
 

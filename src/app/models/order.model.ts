@@ -1,5 +1,5 @@
 export interface Supplier {
-    id: number;
+    id: number | string;
     name: string;
     logo_filename?: string;
     address?: string;
@@ -13,10 +13,12 @@ export interface Supplier {
     cnpj?: string;
     state_registration?: string;
     email?: string;
+    representativeName?: string;
+    representativePhone?: string;
 }
 
 export interface Customer {
-    id: number;
+    id: number | string;
     name: string;
     address?: string;
     number?: string;
@@ -76,8 +78,8 @@ export interface Order {
     freightType?: string;
     paymentTerms?: string;
     observation?: string;
-    customerId: number;
-    supplierId: number;
+    customerId: number | string;
+    supplierId: number | string;
     isLegacy?: boolean;
     customer?: Customer;
     supplier?: Supplier;
