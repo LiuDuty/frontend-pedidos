@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -7,6 +7,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { SplashComponent } from './components/splash/splash.component';
 
 @Component({
   selector: 'app-root',
@@ -14,10 +15,12 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
   imports: [
     CommonModule, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatSidenavModule, MatListModule,
-    MatIconModule, MatButtonModule
+    MatIconModule, MatButtonModule, SplashComponent
   ],
   template: `
-    <mat-sidenav-container class="sidenav-container">
+    <app-splash *ngIf="showSplash()" (finished)="onSplashFinished()"></app-splash>
+
+    <mat-sidenav-container class="sidenav-container" *ngIf="!showSplash()">
       <mat-sidenav #drawer class="sidenav" fixedInViewport
           [attr.role]="'navigation'"
           [mode]="isHandset ? 'over' : 'side'"
@@ -47,7 +50,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
           <button mat-icon-button *ngIf="isHandset" (click)="drawer.toggle()" aria-label="Toggle menu">
             <mat-icon>menu</mat-icon>
           </button>
-          <span>Sistema de Pedidos</span>
+          <span>Marcann - Pedidos</span>
         </mat-toolbar>
         <div class="content">
           <router-outlet></router-outlet>
@@ -72,6 +75,7 @@ export class App {
   @ViewChild('drawer') drawer!: MatSidenav;
   private breakpointObserver = inject(BreakpointObserver);
   isHandset = false;
+  showSplash = signal(true);
 
   constructor() {
     this.breakpointObserver.observe([Breakpoints.Handset, Breakpoints.Tablet])
@@ -80,9 +84,14 @@ export class App {
       });
   }
 
+  onSplashFinished() {
+    this.showSplash.set(false);
+  }
+
   closeSidenavIfHandset() {
     if (this.isHandset && this.drawer) {
       this.drawer.close();
     }
   }
 }
+

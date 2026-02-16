@@ -36,7 +36,7 @@ import { environment } from '../../../environments/environment';
 <div class="order-container">
   <mat-card>
     <mat-card-header>
-      <mat-card-title>Emissão de Nota Fiscal / Pedido</mat-card-title>
+      <mat-card-title>Marcann - Emissão de Notas & Pedidos</mat-card-title>
     </mat-card-header>
     
     <mat-card-content>
