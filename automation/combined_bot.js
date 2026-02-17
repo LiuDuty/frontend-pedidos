@@ -43,18 +43,27 @@ client.on('ready', () => {
 });
 
 async function handleMessage(msg) {
-    const isFromTarget = msg.from === TARGET_JID || (msg.fromMe && msg.to === TARGET_JID);
+    console.log(`📩 Mensagem recebida de: ${msg.from} [Me: ${msg.fromMe}]`);
+
+    // Suporte para mensagens diretas e grupos onde o número alvo está
+    const isFromTarget = (msg.from.includes(TARGET_NUMBER) || msg.author?.includes(TARGET_NUMBER)) && !msg.fromMe;
+
     if (isFromTarget) {
         const timestamp = Date.now();
         const filename = `msg_PENDING_${timestamp}.txt`;
         await fs.writeFile(path.join(MESSAGES_DIR, filename), msg.body, 'utf8');
-        console.log(`📨 Comando recebido: "${msg.body}"`);
+        console.log(`🎯 COMANDO ALVO DETECTADO: "${msg.body}"`);
         await client.sendMessage(msg.from, `🚀 Antigravity: Comando agendado!`);
     }
 }
 
 client.on('message', handleMessage);
-client.on('message_create', handleMessage);
+client.on('message_create', (msg) => {
+    // message_create pega mensagens enviadas por VOCÊ também, mas handleMessage filtra !msg.fromMe
+    if (msg.fromMe && msg.to === TARGET_JID) {
+        // Log opcional para monitorar o que sai do bot
+    }
+});
 
 async function sendStatus(message) {
     try {
@@ -86,7 +95,9 @@ async function processNextMessage() {
 
             console.log('Enviando para o Git...');
             execSync('git add .', { cwd: FRONTEND_PATH });
-            execSync(`git commit -m "Auto Release: ${commandText.trim().substring(0, 50)}"`, { cwd: FRONTEND_PATH });
+            // Escapa aspas para não quebrar o comando de commit
+            const safeMsg = commandText.trim().replace(/"/g, '\\"').substring(0, 100);
+            execSync(`git commit -m "Auto Release: ${safeMsg}"`, { cwd: FRONTEND_PATH });
             execSync('git push', { cwd: FRONTEND_PATH });
 
             await sendStatus(`🎉 *DEPLOY CONCLUÍDO COM SUCESSO!*\n\n✅ Build: OK\n✅ Push: OK`);

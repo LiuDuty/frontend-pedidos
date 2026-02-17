@@ -89,6 +89,9 @@ import { PdfService } from '../../services/pdf.service';
             <button mat-icon-button color="warn" [matMenuTriggerFor]="pdfMenu" matTooltip="Opções de PDF">
               <mat-icon>picture_as_pdf</mat-icon>
             </button>
+            <button mat-icon-button color="accent" (click)="cloneOrder(o)" matTooltip="Novo pedido com este modelo">
+              <mat-icon>content_copy</mat-icon>
+            </button>
             <mat-menu #pdfMenu="matMenu">
               <button mat-menu-item (click)="generatePDF(o, 'preview')">
                 <mat-icon>visibility</mat-icon>
@@ -182,5 +185,23 @@ export class OrderHistoryComponent implements OnInit {
         this.pdfService.generateOrderPDF(fullOrder, action);
       });
     }
+  }
+
+  cloneOrder(order: Order) {
+    this.orderService.getOrder(String(order.id)).subscribe(fullOrder => {
+      // Remove campos de identificação para tratar como novo pedido
+      const { id, objectId, createdAt, updatedAt, orderNumber, ...templateData } = fullOrder as any;
+
+      // Limpa o número do pedido para forçar o sistema a sugerir ou o usuário digitar
+      const template: Order = {
+        ...templateData,
+        orderNumber: '',
+        orderDate: new Date().toISOString()
+      };
+
+      this.router.navigate(['/order-form'], {
+        state: { selectedOrder: template }
+      });
+    });
   }
 }

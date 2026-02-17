@@ -536,7 +536,16 @@ export class OrderFormComponent implements OnInit {
     }
 
     if (state && state['selectedOrder']) {
-      this.loadOrder(state['selectedOrder']);
+      const orderData = state['selectedOrder'];
+      this.loadOrder(orderData);
+
+      // Se não tem ID, é um template/clone, busca o próximo número
+      if (!orderData.id) {
+        this.checkNextNumber();
+        if (orderData.supplierId) {
+          this.loadPreviousOrders(String(orderData.supplierId));
+        }
+      }
       return;
     }
 
