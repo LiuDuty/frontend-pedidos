@@ -103,5 +103,7 @@ export interface Order {
     carrierObj?: Carrier;
     representativeName?: string;
     representativePhone?: string;
+    customerName?: string;
+    supplierName?: string;
     orderItems?: OrderItem[];
 }

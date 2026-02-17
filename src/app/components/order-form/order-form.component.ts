@@ -51,6 +51,18 @@ import { PdfService } from '../../services/pdf.service';
             </mat-select>
           </mat-form-field>
 
+          <mat-form-field appearance="outline" class="col-6" *ngIf="previousOrders().length > 0">
+            <mat-label>Importar itens de pedido anterior</mat-label>
+            <mat-select (selectionChange)="onImportOrder($event.value)">
+              <mat-option *ngFor="let o of previousOrders()" [value]="o">
+                Pedido #{{o.orderNumber}} - {{o.orderDate | date:'dd/MM/yyyy'}} - {{o.customerName}}
+              </mat-option>
+            </mat-select>
+            <mat-hint>Carrega itens deste pedido para o atual</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <div class="row">
           <mat-form-field appearance="outline" class="col-6">
             <mat-label>Cliente</mat-label>
             <mat-select formControlName="customerId" (selectionChange)="onCustomerSelect($event.value)">
@@ -506,6 +518,7 @@ export class OrderFormComponent implements OnInit {
   customers = signal<Customer[]>([]);
   carriers = signal<Carrier[]>([]);
   selectedSupplier = signal<Supplier | null>(null);
+  previousOrders = signal<Order[]>([]);
 
   ngOnInit() {
     this.orderService.getSuppliers().subscribe(res => this.suppliers.set(res));
@@ -619,6 +632,43 @@ export class OrderFormComponent implements OnInit {
       }
     });
     this.checkNextNumber();
+    this.loadPreviousOrders(id);
+  }
+
+  loadPreviousOrders(supplierId: string) {
+    this.orderService.getOrders({ supplierId }).subscribe(orders => {
+      const currentId = this.orderForm.get('id')?.value;
+      // Filtra o pedido atual e garante que tenha itens
+      this.previousOrders.set(orders.filter(o => String(o.id) !== String(currentId)));
+    });
+  }
+
+  onImportOrder(order: Order) {
+    if (!order) return;
+
+    // Se houver itens, pergunta ou apenas limpa e carrega (conforme pedido: "importar e depois será editado")
+    this.items.clear();
+
+    if (order.orderItems && order.orderItems.length > 0) {
+      order.orderItems.forEach(i => {
+        const g = this.fb.group({
+          productName: [i.productName, Validators.required],
+          productCode: [i.productCode],
+          caseQuantity: [i.caseQuantity],
+          weight: [i.weight],
+          quantity: [i.quantity],
+          pricePerThousand: [i.pricePerThousand],
+          subtotal: [i.subtotal],
+          ipi: [i.ipi],
+          total: [i.total]
+        });
+        this.items.push(g);
+      });
+      this.snackBar.open(`Itens do pedido ${order.orderNumber} carregados!`, 'OK', { duration: 3000 });
+    } else {
+      this.addItem(); // Adiciona uma linha vazia se não houver itens
+      this.snackBar.open(`O pedido ${order.orderNumber} não possui itens para importar.`, 'OK', { duration: 3000 });
+    }
   }
 
   getLogoUrl(): string {
