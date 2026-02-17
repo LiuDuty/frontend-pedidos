@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { SplashComponent } from './components/splash/splash.component';
+import { TutorialComponent } from './components/tutorial/tutorial.component';
 
 @Component({
   selector: 'app-root',
@@ -15,12 +16,14 @@ import { SplashComponent } from './components/splash/splash.component';
   imports: [
     CommonModule, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatSidenavModule, MatListModule,
-    MatIconModule, MatButtonModule, SplashComponent
+    MatIconModule, MatButtonModule, SplashComponent, TutorialComponent
   ],
   template: `
     <app-splash *ngIf="showSplash()" (finished)="onSplashFinished()"></app-splash>
 
-    <mat-sidenav-container class="sidenav-container" *ngIf="!showSplash()">
+    <app-tutorial *ngIf="showTutorial()" (finished)="onTutorialFinished()"></app-tutorial>
+
+    <mat-sidenav-container class="sidenav-container" *ngIf="!showSplash() && !showTutorial()">
       <mat-sidenav #drawer class="sidenav" fixedInViewport
           [attr.role]="'navigation'"
           [mode]="isHandset ? 'over' : 'side'"
@@ -80,6 +83,7 @@ export class App {
   private breakpointObserver = inject(BreakpointObserver);
   isHandset = false;
   showSplash = signal(true);
+  showTutorial = signal(false);
 
   constructor() {
     this.breakpointObserver.observe([Breakpoints.Handset, Breakpoints.Tablet])
@@ -90,6 +94,12 @@ export class App {
 
   onSplashFinished() {
     this.showSplash.set(false);
+    // Mostrar tutorial após o splash
+    this.showTutorial.set(true);
+  }
+
+  onTutorialFinished() {
+    this.showTutorial.set(false);
   }
 
   closeSidenavIfHandset() {
