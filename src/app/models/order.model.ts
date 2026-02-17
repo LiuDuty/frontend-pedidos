@@ -34,6 +34,22 @@ export interface Customer {
     state_registration?: string;
 }
 
+export interface Carrier {
+    id: number | string;
+    name: string;
+    address?: string;
+    number?: string;
+    zipcode?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    phone?: string;
+    email?: string;
+    cnpj?: string;
+    contact?: string;
+    state_registration?: string;
+}
+
 export interface OrderItem {
     id?: number;
     productName: string;
@@ -75,6 +91,7 @@ export interface Order {
     carrier?: string;
     carrierPhone?: string;
     carrierContact?: string;
+    carrierId?: string | number;
     freightType?: string;
     paymentTerms?: string;
     observation?: string;
@@ -83,5 +100,8 @@ export interface Order {
     isLegacy?: boolean;
     customer?: Customer;
     supplier?: Supplier;
+    carrierObj?: Carrier;
+    representativeName?: string;
+    representativePhone?: string;
     orderItems?: OrderItem[];
 }

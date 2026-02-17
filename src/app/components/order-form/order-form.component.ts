@@ -15,7 +15,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatMenuModule } from '@angular/material/menu';
 
 import { OrderService } from '../../services/order.service';
-import { Order, OrderItem, Supplier, Customer } from '../../models/order.model';
+import { Order, OrderItem, Supplier, Customer, Carrier } from '../../models/order.model';
 import { NotaFiscalService } from '../../services/nota-fiscal.service';
 import { NotaFiscal } from '../../models/nota-fiscal.model';
 import { environment } from '../../../environments/environment';
@@ -98,6 +98,16 @@ import { PdfService } from '../../services/pdf.service';
             <input matInput formControlName="supplierPhone">
           </mat-form-field>
         </div>
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Nome do Representante</mat-label>
+            <input matInput formControlName="representativeName">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Telefone do Representante</mat-label>
+            <input matInput formControlName="representativePhone">
+          </mat-form-field>
+        </div>
 
         <h4 class="section-title">Dados do Cliente</h4>
         <div class="row">
@@ -165,6 +175,15 @@ import { PdfService } from '../../services/pdf.service';
         </div>
 
         <h4 class="section-title">Transportadora</h4>
+        <div class="row">
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Selecione a Transportadora</mat-label>
+            <mat-select formControlName="carrierId" (selectionChange)="onCarrierSelect($event.value)">
+                <mat-option [value]="null">-- Nenhuma --</mat-option>
+                <mat-option *ngFor="let car of carriers()" [value]="car.id">{{car.name}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
         <div class="row">
           <mat-form-field appearance="outline" class="col-6">
             <mat-label>Nome da Transportadora</mat-label>
@@ -281,7 +300,7 @@ import { PdfService } from '../../services/pdf.service';
     </mat-card-content>
 
     <mat-card-actions align="end">
-      <button mat-button color="accent" (click)="createFiveTestRecords()">Gerar 5 Pedidos Teste</button>
+      <button mat-button color="warn" (click)="resetAndSeed()">Resetar & Seed</button>
       <button mat-button color="accent" (click)="createTestRecord()">Modelo Imagem</button>
       <button mat-raised-button (click)="novo()">Novo Pedido</button>
       <button mat-raised-button color="primary" (click)="gravar()" [disabled]="orderForm.invalid">Gravar</button>
@@ -470,6 +489,7 @@ export class OrderFormComponent implements OnInit {
     deliveryIe: [''],
     deliveryZip: [''],
     // Transporte
+    carrierId: [null as string | null],
     carrierName: [''],
     carrierPhone: [''],
     carrierContact: [''],
@@ -484,11 +504,13 @@ export class OrderFormComponent implements OnInit {
 
   suppliers = signal<Supplier[]>([]);
   customers = signal<Customer[]>([]);
+  carriers = signal<Carrier[]>([]);
   selectedSupplier = signal<Supplier | null>(null);
 
   ngOnInit() {
     this.orderService.getSuppliers().subscribe(res => this.suppliers.set(res));
     this.orderService.getCustomers().subscribe(res => this.customers.set(res));
+    this.orderService.getCarriers().subscribe(res => this.carriers.set(res));
 
     // Check if navigating from history page with a selected nota
     const navigation = this.router.getCurrentNavigation();
@@ -650,6 +672,17 @@ export class OrderFormComponent implements OnInit {
     this.checkNextNumber();
   }
 
+  onCarrierSelect(id: any) {
+    const c = this.carriers().find(x => String(x.id) === String(id));
+    if (c) {
+      this.orderForm.patchValue({
+        carrierName: c.name,
+        carrierPhone: c.phone || '',
+        carrierContact: c.contact || ''
+      });
+    }
+  }
+
   checkNextNumber() {
     const sId = this.orderForm.get('supplierId')?.value;
     const cId = this.orderForm.get('customerId')?.value;
@@ -696,6 +729,8 @@ export class OrderFormComponent implements OnInit {
       supplierIe: (o as any).supplierIe,
       supplierEmail: (o as any).supplierEmail,
       supplierPhone: (o as any).supplierPhone,
+      representativeName: (o as any).representativeName,
+      representativePhone: (o as any).representativePhone,
       // Cliente
       customerName: (o as any).customerName,
       customerAddress: (o as any).customerAddress,
@@ -719,6 +754,7 @@ export class OrderFormComponent implements OnInit {
       deliveryPhone: o.deliveryPhone,
       deliveryBairro: (o as any).deliveryBairro,
       // Transporte
+      carrierId: o.carrierId ? String(o.carrierId) : (o as any).carrierId,
       carrierName: (o as any).carrierName,
       carrierPhone: (o as any).carrierPhone,
       carrierContact: (o as any).carrierContact,
@@ -848,50 +884,116 @@ export class OrderFormComponent implements OnInit {
     this.snackBar.open('Dados fiéis carregados! Agora clique em Preview PDF (Paisagem).', 'OK', { duration: 3000 });
   }
 
-  createFiveTestRecords() {
-    this.snackBar.open('Gerando 5 pedidos de teste...', 'Aguarde');
-    const baseNum = Math.floor(Math.random() * 10000);
-    const requests = [];
+  resetAndSeed() {
+    if (!confirm('ATENÇÃO: Isso apagará TODOS os pedidos do histórico e criará dados de teste (Transportadoras e 1 Pedido Exemplo). Continuar?')) return;
 
-    for (let i = 1; i <= 5; i++) {
-      const orderNum = (baseNum + i).toString();
-      const mockOrder: any = {
-        orderNumber: orderNum,
-        orderDate: new Date().toISOString(),
-        customerOc: 'OC-' + orderNum,
-        supplierName: 'FORNECEDOR TESTE ' + i,
-        // Usar IDs fixos ou existentes se possível, caso contrário o Back4App pode reclamar se for Pointer
-        // Mas como estamos enviando strings nos campos 'supplierName', assumimos que é aceito
-        customerName: 'CLIENTE TESTE ' + i,
-        deliveryName: 'CLIENTE TESTE ' + i,
-        deliveryCity: 'SÃO PAULO',
-        deliveryState: 'SP',
-        paymentTerms: '30 DIAS',
-        freightType: 'CIF',
-        // CORREÇÃO: O campo lido é 'orderItems', então devemos salvar como 'orderItems'
-        orderItems: [
-          { productName: 'PRODUTO A', quantity: 10, pricePerThousand: 100, subtotal: 1000, ipi: 0, total: 1000 },
-          { productName: 'PRODUTO B', quantity: 20, pricePerThousand: 50, subtotal: 1000, ipi: 0, total: 1000 }
-        ]
-      };
-      requests.push(this.orderService.createOrder(mockOrder));
-    }
+    this.snackBar.open('Iniciando limpeza e seed...', 'Aguarde');
 
-    // Executar todos e avisar no final
-    // Importante: forkJoin precisa de import de 'rxjs'
-    // Como não quero mexer nos imports agora, farei um Promise.all gambiarra ou chain simples
-    // Vamos de chain simples com contador
-    let completed = 0;
-    requests.forEach(req => {
-      req.subscribe({
-        next: () => {
-          completed++;
-          if (completed === 5) {
-            this.snackBar.open('✅ 5 Pedidos gerados com sucesso! Atualize o histórico.', 'Fechar', { duration: 5000 });
+    // 1. Limpar Pedidos
+    this.orderService.getOrders().subscribe(orders => {
+      const deleteReqs = orders.map(o => this.orderService.deleteOrder(String(o.id)));
+
+      // Simulação de forkJoin manual
+      let deleted = 0;
+      if (deleteReqs.length === 0) this.seedData();
+
+      deleteReqs.forEach(req => {
+        req.subscribe(() => {
+          deleted++;
+          if (deleted === deleteReqs.length) {
+            this.seedData();
           }
-        },
-        error: (e) => this.showError('Erro ao gerar pedido teste: ' + e.message)
+        });
       });
+    });
+  }
+
+  seedData() {
+    // 2. Criar Transportadoras Fictícias se não existirem
+    this.orderService.getCarriers().subscribe(carriers => {
+      if (carriers.length === 0) {
+        const dummyCarriers: Carrier[] = [
+          {
+            id: '',
+            name: 'SPEED LOGÍSTICA',
+            cnpj: '12.345.678/0001-90',
+            city: 'SÃO PAULO',
+            state: 'SP',
+            phone: '11 99999-0000',
+            contact: 'Carlos'
+          },
+          {
+            id: '',
+            name: 'TRANS RÁPIDO',
+            cnpj: '98.765.432/0001-10',
+            city: 'CAMPINAS',
+            state: 'SP',
+            phone: '19 3333-4444',
+            contact: 'Ana'
+          }
+        ];
+
+        dummyCarriers.forEach(c => {
+          const { id, ...data } = c;
+          this.orderService.createCarrier(data).subscribe();
+        });
+      }
+    });
+
+    // 3. Criar 1 Pedido Histórico (Baseado no createTestRecord)
+    const modelOrder: any = {
+      orderNumber: '185',
+      orderDate: new Date('2025-08-08').toISOString(),
+      customerOc: '36335',
+      deliveryDate: new Date('2025-08-28').toISOString(),
+      paymentTerms: '28/35/42/49/56 DIAS DA DATA DE FATURAMENTO, LÍQUIDO.',
+      freightType: 'CIF',
+      supplierName: 'CCS IND. E COM. DE EMBALAGENS PLASTICAS LTDA.',
+      supplierCnpj: '80.130.487/0001-66',
+      supplierIe: '251.553.949',
+      supplierAddress: 'RODOVIA SC 443, KM 03',
+      supplierNumber: 'S/N',
+      supplierZip: '88820-000',
+      supplierBairro: 'PRESIDENTE VARGAS',
+      supplierCity: 'IÇARA',
+      supplierState: 'SC',
+      supplierEmail: 'ccs.emb@terra.com.br',
+      supplierPhone: '48 3462-1864/1462',
+      customerName: 'PRODUTOS ALIMENTICIOS SUPERBOM IND. E COM. LTDA.',
+      customerCnpj: '53.135.232/0001-13',
+      customerIe: '100.014.624.117',
+      customerContact: 'JOÃO GOMES',
+      customerEmail: 'compras.01@superbom.com.br',
+      deliveryName: 'PRODUTOS ALIMENTICIOS SUPERBOM IND. E COM. LTDA.',
+      deliveryAddress: 'RUA DOMINGOS PEIXOTO DA SILVA, 245',
+      deliveryCity: 'SÃO PAULO',
+      deliveryState: 'SP',
+      deliveryCnpj: '53.135.232/0001-13',
+      deliveryIe: '100.014.624.117',
+      deliveryBairro: 'CAPÃO REDONDO',
+      deliveryPhone: '11 2842-1807',
+      deliveryZip: '05868-680',
+      carrierName: 'SPEED LOGÍSTICA', // Assign one of the dummy carriers
+      representativeName: 'MARCIO FERNANDES LUCCHESE',
+      representativePhone: 'CEL. 11 94972-4778',
+      observation: 'REEMBALAGEM RETORNÁVEL PARA TRANSPORTE E ARMAZENAMENTO: CAIXAS DE PAPELÃO.\n\nA MERCADORIA SOMENTE SERÁ ACEITA SE O NUMERO DA ORDEM DE COMPRA ESTIVER DESTACADO NA NOTA FISCAL.',
+      // Mock IDs to satisfy constraints if necessary, though strings seem to valid for now based on service
+      supplierId: 'dummy_supplier_id',
+      customerId: 'dummy_customer_id',
+      orderItems: [
+        { productName: 'FRASCO 200 G', caseQuantity: 1, quantity: 36, pricePerThousand: 678.80, subtotal: 24436.8, ipi: 0, total: 24436.8 },
+        { productName: 'TAMPA TIPO CONE', caseQuantity: 1, quantity: 36, pricePerThousand: 287.20, subtotal: 10339.2, ipi: 0, total: 10339.2 },
+        { productName: 'SOBRE-TAMPA TRANSPARENTE', caseQuantity: 1, quantity: 36, pricePerThousand: 234.15, subtotal: 8429.4, ipi: 0, total: 8429.4 },
+        { productName: 'MÃO-DE-OBRA PARA APLICAÇÃO DE SELOS E MONTAGEM DE TAMPAS', caseQuantity: 1, quantity: 36, pricePerThousand: 116.25, subtotal: 4185, ipi: 0, total: 4185 }
+      ]
+    };
+
+    this.orderService.createOrder(modelOrder).subscribe({
+      next: () => {
+        this.snackBar.open('✅ Banco de dados resetado e seedado com sucesso!', 'OK', { duration: 5000 });
+        this.loadOrder(modelOrder); // Show it in the form
+      },
+      error: (e) => this.showError('Erro ao criar pedido seed: ' + e.message)
     });
   }
 

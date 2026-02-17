@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, map, switchMap, catchError, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Order, Supplier, Customer } from '../models/order.model';
+import { Order, Supplier, Customer, Carrier } from '../models/order.model';
 
 @Injectable({
     providedIn: 'root'
@@ -92,6 +92,29 @@ export class OrderService {
 
     deleteCustomer(id: string): Observable<any> {
         return this.http.delete(`${this.apiUrl}/Customer/${id}`, { headers: this.getHeaders() });
+    }
+
+    getCarriers(): Observable<Carrier[]> {
+        return this.http.get<{ results: any[] }>(`${this.apiUrl}/Carrier`, { headers: this.getHeaders() }).pipe(
+            map(res => res.results.map(item => this.mapNode(item)))
+        );
+    }
+
+    createCarrier(data: Partial<Carrier>): Observable<Carrier> {
+        return this.http.post<any>(`${this.apiUrl}/Carrier`, data, { headers: this.getHeaders() }).pipe(
+            map(item => this.mapNode(item))
+        );
+    }
+
+    updateCarrier(id: string, data: Partial<Carrier>): Observable<Carrier> {
+        const { objectId, createdAt, updatedAt, id: _, ...updateData } = data as any;
+        return this.http.put<any>(`${this.apiUrl}/Carrier/${id}`, updateData, { headers: this.getHeaders() }).pipe(
+            map(item => this.mapNode(item))
+        );
+    }
+
+    deleteCarrier(id: string): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/Carrier/${id}`, { headers: this.getHeaders() });
     }
 
     getOrders(filters?: any): Observable<Order[]> {

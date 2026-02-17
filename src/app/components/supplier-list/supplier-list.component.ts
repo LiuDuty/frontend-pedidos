@@ -102,7 +102,7 @@ import { Supplier } from '../../models/order.model';
               </button>
             </div>
             <small *ngIf="supplierForm.get('logo_filename')?.value" class="current-logo">
-              Logo atual: {{supplierForm.get('logo_filename')?.value}}
+              Logo carregado.
             </small>
           </div>
         </div>

@@ -39,6 +39,10 @@ import { SplashComponent } from './components/splash/splash.component';
             <mat-icon matListItemIcon>people</mat-icon>
             <span matListItemTitle>Clientes</span>
           </a>
+          <a mat-list-item routerLink="/carriers" routerLinkActive="active-link" (click)="closeSidenavIfHandset()">
+            <mat-icon matListItemIcon>local_shipping</mat-icon>
+            <span matListItemTitle>Transportadoras</span>
+          </a>
           <a mat-list-item routerLink="/history" routerLinkActive="active-link" (click)="closeSidenavIfHandset()">
             <mat-icon matListItemIcon>history</mat-icon>
             <span matListItemTitle>Histórico</span>
