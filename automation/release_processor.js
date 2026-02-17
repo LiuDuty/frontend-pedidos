@@ -34,9 +34,14 @@ async function processNextMessage() {
         try {
             console.log('--- Step 1: Frontend Build ---');
             try {
-                execSync('npm run build', { cwd: FRONTEND_PATH, stdio: 'inherit' });
+                // Use stdio: 'pipe' to capture output and log it
+                const buildOutput = execSync('npm run build', { cwd: FRONTEND_PATH, stdio: 'pipe', encoding: 'utf-8' });
+                console.log(buildOutput);
                 console.log('✅ Build successful.');
             } catch (buildErr) {
+                console.error('⚠️ Build failed. Output:');
+                if (buildErr.stdout) console.log(buildErr.stdout.toString());
+                if (buildErr.stderr) console.error(buildErr.stderr.toString());
                 console.warn('⚠️ Build failed or skipped, proceeding with push anyway...');
             }
 
