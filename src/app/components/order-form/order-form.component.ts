@@ -44,13 +44,23 @@ import { PdfService } from '../../services/pdf.service';
       <form [formGroup]="orderForm">
         <!-- SEÇÃO: FORNECEDOR E CLIENTE -->
         <div class="row">
-          <mat-form-field appearance="outline" class="col-8">
+          <mat-form-field appearance="outline" class="col-6">
             <mat-label>Fornecedor</mat-label>
             <mat-select formControlName="supplierId" (selectionChange)="onSupplierSelect($event.value)">
               <mat-option *ngFor="let s of suppliers()" [value]="s.id">{{s.name}}</mat-option>
             </mat-select>
           </mat-form-field>
-          <div class="col-4 logo-container" *ngIf="selectedSupplier() && selectedSupplier()?.logo_filename">
+
+          <mat-form-field appearance="outline" class="col-6">
+            <mat-label>Cliente</mat-label>
+            <mat-select formControlName="customerId" (selectionChange)="onCustomerSelect($event.value)">
+              <mat-option *ngFor="let c of customers()" [value]="c.id">{{c.name}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="row" *ngIf="selectedSupplier() && selectedSupplier()?.logo_filename">
+          <div class="col-12 logo-container">
             <img [src]="getLogoUrl()" alt="Logo do Fornecedor" class="supplier-logo" (error)="onLogoError($event)">
           </div>
         </div>
