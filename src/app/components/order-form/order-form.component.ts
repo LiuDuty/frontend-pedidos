@@ -850,7 +850,8 @@ export class OrderFormComponent implements OnInit {
 
   createFiveTestRecords() {
     this.snackBar.open('Gerando 5 pedidos de teste...', 'Aguarde');
-    const baseNum = Math.floor(Math.random() * 1000);
+    const baseNum = Math.floor(Math.random() * 10000);
+    const requests = [];
 
     for (let i = 1; i <= 5; i++) {
       const orderNum = (baseNum + i).toString();
@@ -859,24 +860,49 @@ export class OrderFormComponent implements OnInit {
         orderDate: new Date().toISOString(),
         customerOc: 'OC-' + orderNum,
         supplierName: 'FORNECEDOR TESTE ' + i,
+        // Usar IDs fixos ou existentes se possível, caso contrário o Back4App pode reclamar se for Pointer
+        // Mas como estamos enviando strings nos campos 'supplierName', assumimos que é aceito
         customerName: 'CLIENTE TESTE ' + i,
         deliveryName: 'CLIENTE TESTE ' + i,
         deliveryCity: 'SÃO PAULO',
         deliveryState: 'SP',
         paymentTerms: '30 DIAS',
         freightType: 'CIF',
-        items: [
+        // CORREÇÃO: O campo lido é 'orderItems', então devemos salvar como 'orderItems'
+        orderItems: [
           { productName: 'PRODUTO A', quantity: 10, pricePerThousand: 100, subtotal: 1000, ipi: 0, total: 1000 },
           { productName: 'PRODUTO B', quantity: 20, pricePerThousand: 50, subtotal: 1000, ipi: 0, total: 1000 }
         ]
       };
-
-      this.orderService.createOrder(mockOrder).subscribe();
+      requests.push(this.orderService.createOrder(mockOrder));
     }
 
-    setTimeout(() => {
-      this.snackBar.open('5 Pedidos gerados com sucesso! Verifique o Histórico.', 'OK', { duration: 4000 });
-    }, 2000);
+    // Executar todos e avisar no final
+    // Importante: forkJoin precisa de import de 'rxjs'
+    // Como não quero mexer nos imports agora, farei um Promise.all gambiarra ou chain simples
+    // Vamos de chain simples com contador
+    let completed = 0;
+    requests.forEach(req => {
+      req.subscribe({
+        next: () => {
+          completed++;
+          if (completed === 5) {
+            this.snackBar.open('✅ 5 Pedidos gerados com sucesso! Atualize o histórico.', 'Fechar', { duration: 5000 });
+          }
+        },
+        error: (e) => this.showError('Erro ao gerar pedido teste: ' + e.message)
+      });
+    });
+  }
+
+  showError(message: string) {
+    // Exibe snackbar com duração longa e botão 'Copiar' (simulado via ação)
+    const snack = this.snackBar.open(message, 'COPIAR ERRO', { duration: 10000 });
+    snack.onAction().subscribe(() => {
+      navigator.clipboard.writeText(message).then(() => {
+        this.snackBar.open('Erro copiado para a área de transferência!', 'OK', { duration: 2000 });
+      });
+    });
   }
 
   generatePDF(action: 'preview' | 'download' | 'share' = 'download') {
