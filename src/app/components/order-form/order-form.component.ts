@@ -243,8 +243,8 @@ import { PdfService } from '../../services/pdf.service';
 
         <!-- SEÇÃO: ITENS -->
         <h4 class="section-title">Produtos / Itens</h4>
-        <div formArrayName="items">
-          @for (item of items.controls; track $index) {
+        <div formArrayName="orderItems">
+          @for (item of orderItems.controls; track $index) {
           <div [formGroupName]="$index" class="item-grid">
             <mat-form-field appearance="outline" class="prod-name">
               <mat-label>Produto</mat-label>
@@ -511,7 +511,7 @@ export class OrderFormComponent implements OnInit {
     billingState: [''],
     billingZip: [''],
     isLegacy: [false],
-    items: this.fb.array([])
+    orderItems: this.fb.array([])
   });
 
   suppliers = signal<Supplier[]>([]);
@@ -560,7 +560,7 @@ export class OrderFormComponent implements OnInit {
 
     // Add a single item with the nota data
     this.addItem();
-    const item = this.items.at(0);
+    const item = this.orderItems.at(0);
     item.patchValue({
       productName: nota.produto,
       quantity: nota.quantidade || 0,
@@ -572,7 +572,7 @@ export class OrderFormComponent implements OnInit {
     this.snackBar.open(`Nota ${nota.nf} carregada do histórico`, 'OK', { duration: 3000 });
   }
 
-  get items() { return this.orderForm.get('items') as FormArray; }
+  get orderItems() { return this.orderForm.get('orderItems') as FormArray; }
 
   addItem() {
     const item = this.fb.group({
@@ -582,17 +582,17 @@ export class OrderFormComponent implements OnInit {
       weight: [0],
       quantity: [0],
       pricePerThousand: [0],
-      subtotal: [{ value: 0, disabled: false }],
+      subtotal: [0],
       ipi: [0],
-      total: [{ value: 0, disabled: false }]
+      total: [0]
     });
-    this.items.push(item);
+    this.orderItems.push(item);
   }
 
-  removeItem(i: number) { this.items.removeAt(i); }
+  removeItem(i: number) { this.orderItems.removeAt(i); }
 
   calculateItem(i: number) {
-    const group = this.items.at(i);
+    const group = this.orderItems.at(i);
     const qty = group.get('quantity')?.value || 0;
     const priceM = group.get('pricePerThousand')?.value || 0;
     const ipi = group.get('ipi')?.value || 0;
@@ -647,7 +647,7 @@ export class OrderFormComponent implements OnInit {
     if (!order) return;
 
     // Se houver itens, pergunta ou apenas limpa e carrega (conforme pedido: "importar e depois será editado")
-    this.items.clear();
+    this.orderItems.clear();
 
     if (order.orderItems && order.orderItems.length > 0) {
       order.orderItems.forEach(i => {
@@ -662,7 +662,7 @@ export class OrderFormComponent implements OnInit {
           ipi: [i.ipi],
           total: [i.total]
         });
-        this.items.push(g);
+        this.orderItems.push(g);
       });
       this.snackBar.open(`Itens do pedido ${order.orderNumber} carregados!`, 'OK', { duration: 3000 });
     } else {
@@ -824,7 +824,7 @@ export class OrderFormComponent implements OnInit {
       });
     }
 
-    this.items.clear();
+    this.orderItems.clear();
     o.orderItems?.forEach(i => {
       const g = this.fb.group({
         productName: [i.productName, Validators.required],
@@ -837,7 +837,7 @@ export class OrderFormComponent implements OnInit {
         ipi: [i.ipi],
         total: [i.total]
       });
-      this.items.push(g);
+      this.orderItems.push(g);
     });
   }
 
@@ -846,7 +846,7 @@ export class OrderFormComponent implements OnInit {
       orderDate: new Date().toISOString(),
       freightType: 'CIF'
     });
-    this.items.clear();
+    this.orderItems.clear();
     this.addItem();
     this.selectedSupplier.set(null);
   }
@@ -908,7 +908,7 @@ export class OrderFormComponent implements OnInit {
       observation: 'REEMBALAGEM RETORNÁVEL PARA TRANSPORTE E ARMAZENAMENTO: CAIXAS DE PAPELÃO.\n\nA MERCADORIA SOMENTE SERÁ ACEITA SE O NUMERO DA ORDEM DE COMPRA ESTIVER DESTACADO NA NOTA FISCAL.'
     });
 
-    this.items.clear();
+    this.orderItems.clear();
     const testItems = [
       { name: 'FRASCO 200 G', code: '', qty: 36, price: 678.80, ipi: 0 },
       { name: 'TAMPA TIPO CONE', code: '', qty: 36, price: 287.20, ipi: 0 },
@@ -928,7 +928,7 @@ export class OrderFormComponent implements OnInit {
         ipi: [i.ipi],
         total: [i.qty * i.price]
       });
-      this.items.push(g);
+      this.orderItems.push(g);
     });
 
     this.snackBar.open('Dados fiéis carregados! Agora clique em Preview PDF (Paisagem).', 'OK', { duration: 3000 });
